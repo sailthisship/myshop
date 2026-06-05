@@ -922,8 +922,29 @@ function go(name) {
 //  API + HELPERS
 // =====================================================================
 async function apiFetch(action, body={}) {
-  const res = await fetch(API_URL,{method:'POST',body:JSON.stringify({action,...body})});
-  return await res.json();
+  // ใช้ GET + payload query string — ทำงานได้แน่นอนกับ Apps Script
+  // (POST มักติดปัญหา CORS preflight บน GitHub Pages)
+  const payload = encodeURIComponent(JSON.stringify({ action, ...body }));
+  const url = API_URL + '?payload=' + payload;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30000);
+  try {
+    const res  = await fetch(url, { method: 'GET', signal: controller.signal });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch(e) {
+      console.error('API raw response:', text.substring(0, 400));
+      throw new Error('API ตอบกลับไม่ใช่ JSON — ตรวจสอบ Deploy settings');
+    }
+  } catch(e) {
+    clearTimeout(timer);
+    if (e.name === 'AbortError') throw new Error('หมดเวลา 30s — Apps Script ช้าเกิน');
+    throw e;
+  }
 }
 let _loadingTimer = null;
 function showLoading(v, txt='กำลังโหลด...') {
