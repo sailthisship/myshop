@@ -121,9 +121,10 @@
   .admin-section{display:none;} .admin-section.active{display:block;}
 
   /* LOADING / TOAST */
-  .loading-overlay{display:none;position:fixed;inset:0;background:rgba(255,255,255,.82);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
+  .loading-overlay{display:none;position:fixed;inset:0;background:rgba(255,255,255,.85);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
   .loading-overlay.show{display:flex;}
   .spinner{width:34px;height:34px;border:4px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+  .loading-txt{font-size:.8rem;color:var(--muted);}
   @keyframes spin{to{transform:rotate(360deg);}}
   .toast-wrap{position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:8px;}
   .toast-msg{background:var(--primary);color:#fff;padding:10px 16px;border-radius:10px;font-size:.82rem;box-shadow:var(--shadow);animation:fadeUp .3s;min-width:210px;}
@@ -155,7 +156,7 @@
 </head>
 <body>
 
-<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div><div class="loading-txt" id="loadingTxt">กำลังโหลด...</div></div>
 <div class="toast-wrap" id="toastWrap"></div>
 
 <!-- LOGIN -->
@@ -447,9 +448,83 @@ function doLogout() { sessionStorage.removeItem('adminAuth'); location.reload();
 async function initAdmin() {
   document.getElementById('topbarDate').textContent =
     new Date().toLocaleDateString('th-TH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  showLoading(true);
-  await Promise.all([loadSettings(), loadCollections(), loadProducts(), loadOrders(), loadDashboard()]);
-  showLoading(false);
+
+  // ── Phase 1: โหลด 3 อย่างที่จำเป็นก่อน ปิด loading เร็ว ──
+  showLoading(true, 'กำลังโหลดข้อมูล...');
+  try {
+    await Promise.all([loadSettings(), loadCollections(), loadProducts()]);
+  } catch(e) { console.warn('Phase1 error', e); }
+  showLoading(false);   // ← ปิด loading ให้เร็วที่สุด UI ใช้งานได้เลย
+
+  // ── Phase 2: โหลด Orders + คำนวณ Dashboard จาก data เดียวกัน ──
+  setDashboardLoading(true);
+  try {
+    await loadOrdersAndDashboard();
+  } catch(e) {
+    console.warn('Phase2 error', e);
+    setDashboardLoading(false);
+  }
+}
+
+// โหลด Orders ครั้งเดียว แล้วคำนวณ Dashboard จาก data เดิมเลย (ไม่ยิง API 2 รอบ)
+async function loadOrdersAndDashboard() {
+  const res = await apiFetch('getOrders');
+  if (!res.success) { setDashboardLoading(false); return; }
+  orders = res.data;
+  renderOrdersTable();
+  computeAndRenderDashboard(orders);
+  setDashboardLoading(false);
+}
+
+// คำนวณ Dashboard จาก orders ที่มีอยู่แล้ว (ไม่ต้องยิง API เพิ่ม)
+function computeAndRenderDashboard(orderList) {
+  const totalOrders  = orderList.length;
+  const totalRevenue = orderList.reduce((s,o)=>s+(Number(o.total)||0),0);
+  const shipped      = orderList.filter(o=>o.status==='shipped').length;
+  const pending      = orderList.filter(o=>o.status==='received'||o.status==='preparing').length;
+
+  document.getElementById('statOrders').textContent  = totalOrders;
+  document.getElementById('statRevenue').textContent = '฿'+totalRevenue.toLocaleString();
+  document.getElementById('statPending').textContent = pending;
+  document.getElementById('statShipped').textContent = shipped;
+
+  // ยอดแยกตามสินค้า
+  const productSales = {};
+  orderList.forEach(o => {
+    try {
+      const items = Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]');
+      items.forEach(item => {
+        if (!productSales[item.name]) productSales[item.name]={qty:0,revenue:0};
+        productSales[item.name].qty     += Number(item.qty);
+        productSales[item.name].revenue += Number(item.price)*Number(item.qty);
+      });
+    } catch(e){}
+  });
+
+  const pe = Object.entries(productSales).sort((a,b)=>b[1].revenue-a[1].revenue).slice(0,8);
+  const mp = pe[0]?.[1].revenue||1;
+  document.getElementById('prodChart').innerHTML = pe.length
+    ? pe.map(([name,v])=>`<div class="chart-row"><div class="chart-label" title="${name}">${name}</div><div class="chart-track"><div class="chart-fill" style="width:${v.revenue/mp*100}%"></div></div><div class="chart-val">฿${Number(v.revenue).toLocaleString()}</div></div>`).join('')
+    : '<div class="empty-state">ยังไม่มีข้อมูล</div>';
+
+  // ยอดรายวัน 7 วันล่าสุด
+  const dailySales = {};
+  orderList.forEach(o => {
+    const raw  = String(o.timestamp||'');
+    const date = raw.split(' ')[0]||raw.split(',')[0]||raw||'unknown';
+    if(!dailySales[date]) dailySales[date]=0;
+    dailySales[date] += Number(o.total)||0;
+  });
+  const de = Object.entries(dailySales).sort((a,b)=>a[0]>b[0]?1:-1).slice(-7);
+  const md = Math.max(...de.map(e=>e[1]),1);
+  document.getElementById('dailyChart').innerHTML = de.length
+    ? de.map(([date,v])=>`<div class="chart-row"><div class="chart-label">${date}</div><div class="chart-track"><div class="chart-fill" style="width:${v/md*100}%;background:linear-gradient(90deg,#10b981,#059669)"></div></div><div class="chart-val">฿${Number(v).toLocaleString()}</div></div>`).join('')
+    : '<div class="empty-state">ยังไม่มีข้อมูล</div>';
+}
+
+function setDashboardLoading(v) {
+  const ids = ['statOrders','statRevenue','statPending','statShipped'];
+  if (v) ids.forEach(id => { document.getElementById(id).innerHTML = '<span style="font-size:1rem;color:var(--muted)">...</span>'; });
 }
 
 async function loadSettings() {
@@ -479,29 +554,11 @@ async function loadProducts() {
 
 async function loadOrders() {
   const res = await apiFetch('getOrders');
-  if (res.success) { orders = res.data; renderOrdersTable(); }
-}
-
-async function loadDashboard() {
-  const res = await apiFetch('getDashboard');
-  if (!res.success) return;
-  const d = res.data;
-  document.getElementById('statOrders').textContent  = d.totalOrders;
-  document.getElementById('statRevenue').textContent = '฿' + Number(d.totalRevenue).toLocaleString();
-  document.getElementById('statPending').textContent = d.pending;
-  document.getElementById('statShipped').textContent = d.shipped;
-
-  const pe = Object.entries(d.productSales).sort((a,b)=>b[1].revenue-a[1].revenue).slice(0,8);
-  const mp = pe[0]?.[1].revenue || 1;
-  document.getElementById('prodChart').innerHTML = pe.length
-    ? pe.map(([name,v])=>`<div class="chart-row"><div class="chart-label" title="${name}">${name}</div><div class="chart-track"><div class="chart-fill" style="width:${v.revenue/mp*100}%"></div></div><div class="chart-val">฿${Number(v.revenue).toLocaleString()}</div></div>`).join('')
-    : '<div class="empty-state">ยังไม่มีข้อมูล</div>';
-
-  const de = Object.entries(d.dailySales).sort((a,b)=>a[0]>b[0]?1:-1).slice(-7);
-  const md = Math.max(...de.map(e=>e[1]),1);
-  document.getElementById('dailyChart').innerHTML = de.length
-    ? de.map(([date,v])=>`<div class="chart-row"><div class="chart-label">${date}</div><div class="chart-track"><div class="chart-fill" style="width:${v/md*100}%;background:linear-gradient(90deg,#10b981,#059669)"></div></div><div class="chart-val">฿${Number(v).toLocaleString()}</div></div>`).join('')
-    : '<div class="empty-state">ยังไม่มีข้อมูล</div>';
+  if (res.success) {
+    orders = res.data;
+    renderOrdersTable();
+    computeAndRenderDashboard(orders);
+  }
 }
 
 // =====================================================================
@@ -655,7 +712,7 @@ async function saveOrderUpdate() {
   if (res.success) {
     showToast('อัปเดตออเดอร์สำเร็จ','success');
     bootstrap.Modal.getInstance(document.getElementById('orderModal')).hide();
-    loadOrders(); loadDashboard();
+    loadOrders();   // โหลดครั้งเดียว อัปเดตทั้งตารางและ dashboard
   } else { showToast('เกิดข้อผิดพลาด','error'); }
 }
 
@@ -868,7 +925,16 @@ async function apiFetch(action, body={}) {
   const res = await fetch(API_URL,{method:'POST',body:JSON.stringify({action,...body})});
   return await res.json();
 }
-function showLoading(v) { document.getElementById('loadingOverlay').classList.toggle('show',v); }
+let _loadingTimer = null;
+function showLoading(v, txt='กำลังโหลด...') {
+  const el = document.getElementById('loadingOverlay');
+  const txEl = document.getElementById('loadingTxt');
+  if (txEl) txEl.textContent = txt;
+  el.classList.toggle('show', v);
+  // safety: ปิดอัตโนมัติถ้าค้างเกิน 15 วินาที
+  if (_loadingTimer) clearTimeout(_loadingTimer);
+  if (v) _loadingTimer = setTimeout(() => { el.classList.remove('show'); }, 15000);
+}
 function showToast(msg,type='') {
   const el=document.createElement('div');
   el.className='toast-msg '+type;
