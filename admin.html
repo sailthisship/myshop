@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<style>
+  :root{
+    --primary:#0f172a;--accent:#6366f1;--accent2:#ec4899;
+    --success:#10b981;--warning:#f59e0b;--danger:#ef4444;
+    --bg:#f1f5f9;--card:#fff;--border:#e2e8f0;
+    --text:#0f172a;--muted:#64748b;--radius:14px;
+    --shadow:0 4px 20px rgba(0,0,0,.07);--sw:240px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);}
+
+  /* LOGIN */
+  .login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,var(--primary) 0%,#1e1b4b 100%);}
+  .login-card{background:#fff;border-radius:20px;padding:38px;width:100%;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,.25);}
+  .login-logo{text-align:center;font-family:'Prompt',sans-serif;font-size:1.4rem;font-weight:700;margin-bottom:4px;}
+  .login-sub{text-align:center;color:var(--muted);font-size:.82rem;margin-bottom:22px;}
+  .btn-login{width:100%;background:var(--accent);color:#fff;border:none;border-radius:12px;padding:11px;font-family:'Prompt',sans-serif;font-weight:600;font-size:.95rem;cursor:pointer;margin-top:6px;transition:opacity .2s;}
+  .btn-login:hover{opacity:.88;}
+
+  /* LAYOUT */
+  .admin-layout{display:flex;min-height:100vh;}
+  .sidebar{width:var(--sw);background:var(--primary);position:fixed;top:0;left:0;bottom:0;z-index:100;display:flex;flex-direction:column;transition:width .3s;}
+  .sidebar-brand{padding:20px 18px;border-bottom:1px solid rgba(255,255,255,.1);}
+  .sidebar-brand .title{font-family:'Prompt',sans-serif;font-size:.95rem;font-weight:700;color:#fff;}
+  .sidebar-brand .sub{font-size:.7rem;color:rgba(255,255,255,.35);margin-top:2px;}
+  .sidebar-nav{flex:1;padding:10px 0;overflow-y:auto;}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;color:rgba(255,255,255,.55);font-size:.845rem;cursor:pointer;transition:all .2s;border-left:3px solid transparent;}
+  .nav-item:hover{color:#fff;background:rgba(255,255,255,.07);}
+  .nav-item.active{color:#fff;background:rgba(99,102,241,.2);border-left-color:var(--accent);}
+  .nav-item i{width:18px;text-align:center;font-size:.88rem;flex-shrink:0;}
+  .sidebar-footer{padding:14px 18px;border-top:1px solid rgba(255,255,255,.1);}
+  .btn-logout{width:100%;background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:7px;font-family:'Sarabun',sans-serif;font-size:.78rem;cursor:pointer;transition:all .2s;}
+  .btn-logout:hover{background:rgba(239,68,68,.28);}
+
+  .main-content{margin-left:var(--sw);flex:1;min-height:100vh;}
+  .topbar{background:#fff;border-bottom:1px solid var(--border);padding:0 22px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+  .topbar-title{font-family:'Prompt',sans-serif;font-weight:700;font-size:1rem;}
+  .page-body{padding:22px;}
+
+  /* CARDS */
+  .card{border-radius:var(--radius);border:1.5px solid var(--border);box-shadow:var(--shadow);background:var(--card);}
+  .card-header-custom{background:transparent;border-bottom:1.5px solid var(--border);padding:14px 18px;font-family:'Prompt',sans-serif;font-weight:600;font-size:.9rem;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .card-body-p{padding:18px;}
+
+  /* STATS */
+  .stat-card{background:var(--card);border-radius:var(--radius);border:1.5px solid var(--border);padding:18px;height:100%;}
+  .stat-icon{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.15rem;margin-bottom:11px;}
+  .stat-val{font-family:'Prompt',sans-serif;font-size:1.5rem;font-weight:700;}
+  .stat-label{font-size:.78rem;color:var(--muted);margin-top:2px;}
+
+  /* TABLE */
+  .table{font-size:.845rem;}
+  .table th{background:var(--bg);font-weight:600;color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.4px;border-bottom:1.5px solid var(--border);padding:9px 13px;white-space:nowrap;}
+  .table td{padding:11px 13px;vertical-align:middle;border-bottom:1px solid var(--border);}
+  .table tbody tr:hover{background:#f8fafc;}
+
+  /* BADGES */
+  .badge-s{padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;}
+  .b-received{background:#eff6ff;color:#3b82f6;}
+  .b-preparing{background:#fefce8;color:#ca8a04;}
+  .b-shipped{background:#f0fdf4;color:#16a34a;}
+
+  /* BUTTONS */
+  .btn-accent{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:7px 15px;font-family:'Sarabun',sans-serif;font-size:.845rem;font-weight:600;cursor:pointer;transition:opacity .2s;white-space:nowrap;}
+  .btn-accent:hover{opacity:.88;}
+  .btn-success{background:var(--success);color:#fff;border:none;border-radius:8px;padding:7px 15px;font-family:'Sarabun',sans-serif;font-size:.845rem;font-weight:600;cursor:pointer;transition:opacity .2s;}
+  .btn-success:hover{opacity:.88;}
+  .btn-sm-i{background:var(--bg);border:1.5px solid var(--border);border-radius:7px;padding:5px 9px;cursor:pointer;transition:all .2s;color:var(--muted);font-size:.78rem;}
+  .btn-sm-i:hover{border-color:var(--accent);color:var(--accent);}
+  .btn-del{background:rgba(239,68,68,.08);border:1.5px solid rgba(239,68,68,.2);color:var(--danger);border-radius:7px;padding:5px 9px;cursor:pointer;font-size:.78rem;transition:all .2s;}
+  .btn-del:hover{background:var(--danger);color:#fff;}
+
+  /* FORMS */
+  .form-control,.form-select{border:1.5px solid var(--border);border-radius:8px;font-family:'Sarabun',sans-serif;font-size:.845rem;padding:8px 11px;}
+  .form-control:focus,.form-select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,.1);outline:none;}
+  .form-label{font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:4px;display:block;}
+
+  /* MODAL */
+  .modal-content{border-radius:var(--radius);border:1.5px solid var(--border);}
+  .modal-header{border-bottom:1.5px solid var(--border);padding:14px 18px;}
+  .modal-title{font-family:'Prompt',sans-serif;font-weight:700;font-size:.95rem;}
+  .modal-footer{border-top:1.5px solid var(--border);padding:12px 18px;}
+
+  /* CHART */
+  .chart-wrap{display:flex;flex-direction:column;gap:9px;}
+  .chart-row{display:flex;align-items:center;gap:10px;}
+  .chart-label{min-width:130px;font-size:.78rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .chart-track{flex:1;height:10px;background:var(--bg);border-radius:99px;overflow:hidden;}
+  .chart-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;transition:width .5s;}
+  .chart-val{font-size:.78rem;font-weight:600;min-width:70px;text-align:right;}
+
+  /* SLIP */
+  .slip-thumb{max-width:100px;max-height:70px;object-fit:contain;border-radius:6px;border:1px solid var(--border);cursor:pointer;}
+  .slip-no{font-size:.72rem;color:var(--muted);}
+
+  /* PROD THUMB */
+  .prod-thumb{width:42px;height:42px;object-fit:cover;border-radius:7px;background:var(--bg);}
+  .prod-thumb-ph{width:42px;height:42px;background:var(--bg);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#ccc;}
+
+  /* SECTIONS */
+  .admin-section{display:none;} .admin-section.active{display:block;}
+
+  /* LOADING / TOAST */
+  .loading-overlay{display:none;position:fixed;inset:0;background:rgba(255,255,255,.82);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
+  .loading-overlay.show{display:flex;}
+  .spinner{width:34px;height:34px;border:4px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .toast-wrap{position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:8px;}
+  .toast-msg{background:var(--primary);color:#fff;padding:10px 16px;border-radius:10px;font-size:.82rem;box-shadow:var(--shadow);animation:fadeUp .3s;min-width:210px;}
+  .toast-msg.success{background:var(--success);}
+  .toast-msg.error{background:var(--danger);}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  .empty-state{text-align:center;padding:36px;color:var(--muted);}
+
+  /* INFO BOX */
+  .info-box{background:var(--bg);border-radius:10px;padding:14px;font-size:.845rem;line-height:1.65;}
+  .info-box strong{color:var(--text);}
+
+  /* SLIP DRIVE BADGE */
+  .drive-badge{display:inline-flex;align-items:center;gap:4px;background:#e8f5e9;color:#2e7d32;border-radius:6px;padding:2px 8px;font-size:.7rem;font-weight:600;}
+
+  @media(max-width:768px){
+    .sidebar{width:60px;}
+    .sidebar-brand .title,.sidebar-brand .sub,.nav-item span,.btn-logout span{display:none;}
+    .main-content{margin-left:60px;}
+    .nav-item{justify-content:center;padding:12px;}
+  }
+
+  @media print{
+    .sidebar,.topbar,.no-print{display:none!important;}
+    .main-content{margin-left:0!important;}
+    body{background:#fff!important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-card">
+    <div class="login-logo">🛍️ Admin Panel</div>
+    <div class="login-sub">ระบบจัดการร้านค้า</div>
+    <div class="mb-3">
+      <label class="form-label">รหัสผ่าน</label>
+      <input type="password" class="form-control" style="font-size:.9rem;padding:10px 12px" id="loginPw" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn-login" onclick="doLogin()">เข้าสู่ระบบ</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="adminApp" style="display:none">
+  <div class="admin-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="title">🛍️ Admin</div>
+        <div class="sub" id="sideShopName">ร้านค้า</div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-item active" onclick="go('dashboard')" id="nav-dashboard"><i class="fa fa-chart-bar"></i><span>Dashboard</span></div>
+        <div class="nav-item" onclick="go('orders')" id="nav-orders"><i class="fa fa-shopping-bag"></i><span>จัดการออเดอร์</span></div>
+        <div class="nav-item" onclick="go('products')" id="nav-products"><i class="fa fa-box"></i><span>จัดการสินค้า</span></div>
+        <div class="nav-item" onclick="go('collections')" id="nav-collections"><i class="fa fa-tags"></i><span>หมวดหมู่</span></div>
+        <div class="nav-item" onclick="go('settings')" id="nav-settings"><i class="fa fa-cog"></i><span>ตั้งค่า</span></div>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="btn-logout" onclick="doLogout()"><i class="fa fa-sign-out-alt"></i><span> ออกจากระบบ</span></button>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main-content">
+      <div class="topbar">
+        <div class="topbar-title" id="topbarTitle">Dashboard</div>
+        <div style="font-size:.78rem;color:var(--muted)" id="topbarDate"></div>
+      </div>
+      <div class="page-body">
+
+        <!-- DASHBOARD -->
+        <div class="admin-section active" id="section-dashboard">
+          <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-icon" style="background:#eff6ff">📦</div><div class="stat-val" id="statOrders">0</div><div class="stat-label">ออเดอร์ทั้งหมด</div></div></div>
+            <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-icon" style="background:#f0fdf4">💰</div><div class="stat-val" id="statRevenue">฿0</div><div class="stat-label">รายได้รวม</div></div></div>
+            <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-icon" style="background:#fefce8">⏳</div><div class="stat-val" id="statPending">0</div><div class="stat-label">รอดำเนินการ</div></div></div>
+            <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-icon" style="background:#f0fdf4">🚚</div><div class="stat-val" id="statShipped">0</div><div class="stat-label">จัดส่งแล้ว</div></div></div>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-header-custom">📊 ยอดขายแยกตามสินค้า</div>
+                <div class="card-body-p"><div class="chart-wrap" id="prodChart"><div class="empty-state">ยังไม่มีข้อมูล</div></div></div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-header-custom">📅 ยอดขายรายวัน</div>
+                <div class="card-body-p"><div class="chart-wrap" id="dailyChart"><div class="empty-state">ยังไม่มีข้อมูล</div></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ORDERS -->
+        <div class="admin-section" id="section-orders">
+          <div class="card">
+            <div class="card-header-custom">
+              📦 รายการออเดอร์
+              <div class="d-flex gap-2 align-items-center">
+                <select class="form-select" style="width:auto;font-size:.78rem" id="orderFilter" onchange="renderOrdersTable()">
+                  <option value="">ทุกสถานะ</option>
+                  <option value="received">📥 ได้รับแล้ว</option>
+                  <option value="preparing">📦 กำลังเตรียม</option>
+                  <option value="shipped">🚚 จัดส่งแล้ว</option>
+                </select>
+                <button class="btn-accent" onclick="loadOrders()"><i class="fa fa-sync me-1"></i>รีเฟรช</button>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="table mb-0">
+                <thead><tr>
+                  <th>เลขออเดอร์</th><th>วันที่</th><th>ลูกค้า</th><th>Account X</th>
+                  <th>สินค้า</th><th>ยอดรวม</th><th>สลิป</th><th>สถานะ</th><th>จัดการ</th>
+                </tr></thead>
+                <tbody id="ordersBody"><tr><td colspan="9" class="empty-state">กำลังโหลด...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- PRODUCTS -->
+        <div class="admin-section" id="section-products">
+          <div class="card">
+            <div class="card-header-custom">
+              📦 รายการสินค้า
+              <button class="btn-accent" onclick="openProdModal()"><i class="fa fa-plus me-1"></i>เพิ่มสินค้า</button>
+            </div>
+            <div class="table-responsive">
+              <table class="table mb-0">
+                <thead><tr><th>รูป</th><th>ชื่อสินค้า</th><th>หมวดหมู่</th><th>ราคา</th><th>คงเหลือ</th><th>สูงสุด/ออเดอร์</th><th>จัดการ</th></tr></thead>
+                <tbody id="productsBody"><tr><td colspan="7" class="empty-state">กำลังโหลด...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- COLLECTIONS -->
+        <div class="admin-section" id="section-collections">
+          <div class="card" style="max-width:480px">
+            <div class="card-header-custom">
+              🏷️ หมวดหมู่สินค้า
+              <button class="btn-accent" onclick="openColModal()"><i class="fa fa-plus me-1"></i>เพิ่มหมวดหมู่</button>
+            </div>
+            <table class="table mb-0">
+              <thead><tr><th>ชื่อหมวดหมู่</th><th>จัดการ</th></tr></thead>
+              <tbody id="colsBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SETTINGS -->
+        <div class="admin-section" id="section-settings">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-header-custom">⚙️ ตั้งค่าร้านค้า</div>
+                <div class="card-body-p">
+                  <div class="mb-3"><label class="form-label">ชื่อร้านค้า</label><input type="text" class="form-control" id="setName"></div>
+                  <div class="mb-3"><label class="form-label">Account X ของร้าน</label><input type="text" class="form-control" id="setX" placeholder="@_SailThisShip"></div>
+                  <div class="mb-3"><label class="form-label">ข้อมูลบัญชีธนาคาร</label><textarea class="form-control" id="setBank" rows="2" placeholder="ธนาคาร XXX เลขที่ 000-0-00000-0 ชื่อบัญชี: ..."></textarea></div>
+                  <div class="mb-3"><label class="form-label">ค่าจัดส่ง (฿ / ต่อออเดอร์)</label><input type="number" class="form-control" id="setShip" min="0"></div>
+                  <button class="btn-accent" onclick="saveSettings()">💾 บันทึกการตั้งค่า</button>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-header-custom">🔐 เปลี่ยนรหัสผ่านแอดมิน</div>
+                <div class="card-body-p">
+                  <div class="mb-3"><label class="form-label">รหัสผ่านใหม่</label><input type="password" class="form-control" id="setPw1"></div>
+                  <div class="mb-3"><label class="form-label">ยืนยันรหัสผ่านใหม่</label><input type="password" class="form-control" id="setPw2"></div>
+                  <button class="btn-accent" onclick="changePassword()">🔐 เปลี่ยนรหัสผ่าน</button>
+                </div>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="card">
+                <div class="card-header-custom">☁️ Google Drive — สลิปโอนเงิน</div>
+                <div class="card-body-p">
+                  <div style="font-size:.875rem;color:var(--muted);line-height:1.7">
+                    สลิปโอนเงินของลูกค้าจะถูกบันทึกอัตโนมัติไปที่ <strong style="color:var(--text)">Google Drive → Folder "ShopSlips"</strong><br>
+                    แอดมินสามารถเข้าไปดูได้ผ่าน Google Drive โดยตรง<br>
+                    ในหน้าออเดอร์ด้านล่างนี้จะแสดงรูปสลิปที่โหลดจาก Drive ได้เลย
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: PRODUCT -->
+<div class="modal fade" id="prodModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="prodModalTitle">เพิ่มสินค้า</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="prodId">
+        <div class="row g-3">
+          <div class="col-12"><label class="form-label">ชื่อสินค้า *</label><input type="text" class="form-control" id="prodName"></div>
+          <div class="col-md-6"><label class="form-label">หมวดหมู่ *</label><select class="form-select" id="prodCol"></select></div>
+          <div class="col-md-6"><label class="form-label">ราคาต่อชิ้น (฿) *</label><input type="number" class="form-control" id="prodPrice" min="0"></div>
+          <div class="col-md-6"><label class="form-label">จำนวนในสต๊อก</label><input type="number" class="form-control" id="prodStock" min="0" value="0"></div>
+          <div class="col-md-6"><label class="form-label">จำนวนสูงสุดต่อออเดอร์</label><input type="number" class="form-control" id="prodMax" min="1" value="99"></div>
+          <div class="col-12">
+            <label class="form-label">URL รูปสินค้า</label>
+            <input type="url" class="form-control" id="prodImg" placeholder="https://..." oninput="previewProdImg(this.value)">
+            <img id="prodImgPrev" style="max-height:110px;border-radius:8px;margin-top:8px;display:none">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">ยกเลิก</button>
+        <button type="button" class="btn-accent" onclick="saveProduct()">💾 บันทึกสินค้า</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: COLLECTION -->
+<div class="modal fade" id="colModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="colModalTitle">เพิ่มหมวดหมู่</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="colId">
+        <label class="form-label">ชื่อหมวดหมู่</label>
+        <input type="text" class="form-control" id="colName">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">ยกเลิก</button>
+        <button type="button" class="btn-accent" onclick="saveCollection()">💾 บันทึก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ORDER -->
+<div class="modal fade" id="orderModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">📦 จัดการออเดอร์ — <span id="modalOrdId"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="orderModalBody"></div>
+      <div class="modal-footer no-print">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">ปิด</button>
+        <button type="button" class="btn-accent" onclick="printPacking()">🖨️ พิมพ์ Packing List</button>
+        <button type="button" class="btn-success" onclick="saveOrderUpdate()">✅ บันทึกการอัปเดต</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: SLIP VIEWER -->
+<div class="modal fade" id="slipModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:transparent;border:none;box-shadow:none">
+      <div class="text-end mb-2 no-print"><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <img id="slipModalImg" style="width:100%;border-radius:12px;max-height:85vh;object-fit:contain">
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// =====================================================================
+//  ⚙️ CONFIG
+// =====================================================================
+const API_URL = 'https://script.google.com/macros/s/AKfycbwdlPa4jDuobh0VbbFvK8RQVoSadNqwShzGoicOuvpFQkKfw1hxQ_mq9v8e--iszpSC/exec';
+
+// =====================================================================
+//  STATE
+// =====================================================================
+let orders=[], products=[], collections=[], settings={};
+let editingOrderId = null;
+
+// =====================================================================
+//  AUTH
+// =====================================================================
+async function doLogin() {
+  const pw = document.getElementById('loginPw').value.trim();
+  if (!pw) return;
+  showLoading(true);
+  const res = await apiFetch('adminLogin', { password: pw });
+  showLoading(false);
+  if (res.success) {
+    sessionStorage.setItem('adminAuth','1');
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('adminApp').style.display = '';
+    initAdmin();
+  } else {
+    showToast(res.message || 'รหัสผ่านไม่ถูกต้อง','error');
+  }
+}
+
+function doLogout() { sessionStorage.removeItem('adminAuth'); location.reload(); }
+
+// =====================================================================
+//  INIT
+// =====================================================================
+async function initAdmin() {
+  document.getElementById('topbarDate').textContent =
+    new Date().toLocaleDateString('th-TH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  showLoading(true);
+  await Promise.all([loadSettings(), loadCollections(), loadProducts(), loadOrders(), loadDashboard()]);
+  showLoading(false);
+}
+
+async function loadSettings() {
+  const res = await apiFetch('getSettings');
+  if (!res.success) return;
+  settings = res.data;
+  document.getElementById('sideShopName').textContent = settings.shopName || 'ร้านค้า';
+  document.getElementById('setName').value  = settings.shopName || '';
+  document.getElementById('setX').value     = settings.xAccount || '';
+  document.getElementById('setBank').value  = settings.bankAccount || '';
+  document.getElementById('setShip').value  = settings.shippingFee || 0;
+}
+
+async function loadCollections() {
+  const res = await apiFetch('getCollections');
+  if (!res.success) return;
+  collections = res.data;
+  renderColsTable();
+  const sel = document.getElementById('prodCol');
+  sel.innerHTML = collections.map(c=>`<option value="${c.ID}">${c.Name}</option>`).join('');
+}
+
+async function loadProducts() {
+  const res = await apiFetch('getProducts');
+  if (res.success) { products = res.data; renderProductsTable(); }
+}
+
+async function loadOrders() {
+  const res = await apiFetch('getOrders');
+  if (res.success) { orders = res.data; renderOrdersTable(); }
+}
+
+async function loadDashboard() {
+  const res = await apiFetch('getDashboard');
+  if (!res.success) return;
+  const d = res.data;
+  document.getElementById('statOrders').textContent  = d.totalOrders;
+  document.getElementById('statRevenue').textContent = '฿' + Number(d.totalRevenue).toLocaleString();
+  document.getElementById('statPending').textContent = d.pending;
+  document.getElementById('statShipped').textContent = d.shipped;
+
+  const pe = Object.entries(d.productSales).sort((a,b)=>b[1].revenue-a[1].revenue).slice(0,8);
+  const mp = pe[0]?.[1].revenue || 1;
+  document.getElementById('prodChart').innerHTML = pe.length
+    ? pe.map(([name,v])=>`<div class="chart-row"><div class="chart-label" title="${name}">${name}</div><div class="chart-track"><div class="chart-fill" style="width:${v.revenue/mp*100}%"></div></div><div class="chart-val">฿${Number(v.revenue).toLocaleString()}</div></div>`).join('')
+    : '<div class="empty-state">ยังไม่มีข้อมูล</div>';
+
+  const de = Object.entries(d.dailySales).sort((a,b)=>a[0]>b[0]?1:-1).slice(-7);
+  const md = Math.max(...de.map(e=>e[1]),1);
+  document.getElementById('dailyChart').innerHTML = de.length
+    ? de.map(([date,v])=>`<div class="chart-row"><div class="chart-label">${date}</div><div class="chart-track"><div class="chart-fill" style="width:${v/md*100}%;background:linear-gradient(90deg,#10b981,#059669)"></div></div><div class="chart-val">฿${Number(v).toLocaleString()}</div></div>`).join('')
+    : '<div class="empty-state">ยังไม่มีข้อมูล</div>';
+}
+
+// =====================================================================
+//  TABLES
+// =====================================================================
+function renderOrdersTable() {
+  const f    = document.getElementById('orderFilter').value;
+  const list = f ? orders.filter(o=>o.status===f) : orders;
+  const body = document.getElementById('ordersBody');
+  if (!list.length) { body.innerHTML=`<tr><td colspan="9" class="empty-state">ไม่มีออเดอร์</td></tr>`; return; }
+  const sm = {received:['b-received','📥 ได้รับแล้ว'],preparing:['b-preparing','📦 กำลังเตรียม'],shipped:['b-shipped','🚚 จัดส่งแล้ว']};
+  body.innerHTML = list.map(o => {
+    const [cls,label] = sm[o.status] || ['b-received',o.status];
+    const summary = o.items.map(i=>`${i.name}×${i.qty}`).join(', ');
+    // สลิปจาก Google Drive
+    let slipCell = '<span class="slip-no">ไม่มีสลิป</span>';
+    if (o.slipUrl) {
+      slipCell = `<div>
+        <img class="slip-thumb" src="${o.slipUrl}" alt="สลิป" onclick="viewSlip('${o.slipUrl}')"
+          onerror="this.outerHTML='<span class=\\'slip-no\\'>โหลดรูปไม่ได้</span>'">
+        <div class="drive-badge mt-1"><i class="fa fa-cloud" style="font-size:.65rem"></i>Drive</div>
+      </div>`;
+    }
+    return `<tr>
+      <td style="font-weight:600;font-size:.78rem">${o.orderId}</td>
+      <td style="font-size:.72rem;color:var(--muted)">${o.timestamp}</td>
+      <td>${o.customerName}</td>
+      <td style="color:var(--accent);font-size:.82rem">${o.xAccount}</td>
+      <td style="font-size:.75rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${summary}">${summary}</td>
+      <td style="font-weight:700">฿${Number(o.total).toLocaleString()}</td>
+      <td>${slipCell}</td>
+      <td><span class="badge-s ${cls}">${label}</span></td>
+      <td><button class="btn-sm-i" onclick="openOrderModal('${o.orderId}')"><i class="fa fa-edit"></i></button></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderProductsTable() {
+  const body = document.getElementById('productsBody');
+  if (!products.length) { body.innerHTML=`<tr><td colspan="7" class="empty-state">ยังไม่มีสินค้า</td></tr>`; return; }
+  body.innerHTML = products.map(p => {
+    const colName = collections.find(c=>c.ID===p.CollectionID)?.Name || '-';
+    const stockColor = Number(p.Stock)<=5 ? 'var(--danger)' : Number(p.Stock)<=20 ? 'var(--warning)' : 'var(--success)';
+    return `<tr>
+      <td>${p.ImageURL ? `<img class="prod-thumb" src="${p.ImageURL}" onerror="this.style.display='none'">` : `<div class="prod-thumb-ph"><i class="fa fa-image"></i></div>`}</td>
+      <td style="font-weight:600">${p.Name}</td>
+      <td style="font-size:.78rem;color:var(--muted)">${colName}</td>
+      <td>฿${Number(p.Price).toLocaleString()}</td>
+      <td><span style="font-weight:700;color:${stockColor}">${p.Stock}</span></td>
+      <td>${p.MaxPerOrder}</td>
+      <td class="d-flex gap-1">
+        <button class="btn-sm-i" onclick="editProduct('${p.ID}')"><i class="fa fa-edit"></i></button>
+        <button class="btn-del" onclick="deleteProduct('${p.ID}','${p.Name.replace(/'/g,"\\'")}')"><i class="fa fa-trash"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderColsTable() {
+  document.getElementById('colsBody').innerHTML = collections.map(c=>`
+    <tr>
+      <td style="font-weight:600">${c.Name}</td>
+      <td class="d-flex gap-1">
+        <button class="btn-sm-i" onclick="editCol('${c.ID}','${c.Name.replace(/'/g,"\\'")}')"><i class="fa fa-edit"></i></button>
+        <button class="btn-del" onclick="deleteCol('${c.ID}','${c.Name.replace(/'/g,"\\'")}')"><i class="fa fa-trash"></i></button>
+      </td>
+    </tr>`).join('');
+}
+
+// =====================================================================
+//  ORDER MODAL
+// =====================================================================
+function openOrderModal(orderId) {
+  const o = orders.find(x=>x.orderId===orderId);
+  if (!o) return;
+  editingOrderId = orderId;
+  document.getElementById('modalOrdId').textContent = orderId;
+
+  // สลิป — แสดงรูปจาก Google Drive URL
+  let slipSection = '';
+  if (o.slipUrl) {
+    slipSection = `
+      <div class="col-12">
+        <label class="form-label">🧾 สลิปโอนเงิน <span class="drive-badge"><i class="fa fa-cloud"></i>Google Drive</span></label>
+        <div><img src="${o.slipUrl}" style="max-height:200px;border-radius:10px;cursor:pointer;border:1.5px solid var(--border)"
+          onclick="viewSlip('${o.slipUrl}')"
+          onerror="this.outerHTML='<div style=\\'color:var(--muted);font-size:.82rem\\'>โหลดรูปสลิปไม่ได้</div>'">
+        </div>
+      </div>`;
+  }
+
+  document.getElementById('orderModalBody').innerHTML = `
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="info-box">
+          <div style="font-weight:700;margin-bottom:8px">👤 ข้อมูลลูกค้า</div>
+          <div>ชื่อ: <strong>${o.customerName}</strong></div>
+          <div>Account X: <strong style="color:var(--accent)">${o.xAccount}</strong></div>
+          <div>โทร: ${o.phone}</div>
+          <div>ที่อยู่: ${o.address}</div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="info-box">
+          <div style="font-weight:700;margin-bottom:8px">📋 รายการสินค้า</div>
+          ${o.items.map(i=>`<div>${i.name} × ${i.qty} = ฿${(i.price*i.qty).toLocaleString()}</div>`).join('')}
+          <hr style="margin:8px 0;border-color:var(--border)">
+          <div>ค่าจัดส่ง: ฿${Number(o.shippingFee).toLocaleString()}</div>
+          <div style="font-weight:700;color:var(--accent)">รวม: ฿${Number(o.total).toLocaleString()}</div>
+        </div>
+      </div>
+      ${slipSection}
+      <div class="col-md-6">
+        <label class="form-label">อัปเดตสถานะ</label>
+        <select class="form-select" id="updateStatus">
+          <option value="received" ${o.status==='received'?'selected':''}>📥 ได้รับคำสั่งซื้อแล้ว</option>
+          <option value="preparing" ${o.status==='preparing'?'selected':''}>📦 กำลังจัดเตรียมสินค้า</option>
+          <option value="shipped" ${o.status==='shipped'?'selected':''}>🚚 จัดส่งสินค้าแล้ว</option>
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">เลขพัสดุ</label>
+        <input type="text" class="form-control" id="updateTracking" value="${o.trackingNumber||''}" placeholder="เลขพัสดุ (เมื่อจัดส่งแล้ว)">
+      </div>
+      <div class="col-12">
+        <label class="form-label">หมายเหตุ</label>
+        <textarea class="form-control" id="updateNote" rows="2">${o.note||''}</textarea>
+      </div>
+    </div>`;
+  new bootstrap.Modal(document.getElementById('orderModal')).show();
+}
+
+async function saveOrderUpdate() {
+  showLoading(true);
+  const res = await apiFetch('updateOrderStatus',{
+    orderId: editingOrderId,
+    status: document.getElementById('updateStatus').value,
+    trackingNumber: document.getElementById('updateTracking').value,
+    note: document.getElementById('updateNote').value
+  });
+  showLoading(false);
+  if (res.success) {
+    showToast('อัปเดตออเดอร์สำเร็จ','success');
+    bootstrap.Modal.getInstance(document.getElementById('orderModal')).hide();
+    loadOrders(); loadDashboard();
+  } else { showToast('เกิดข้อผิดพลาด','error'); }
+}
+
+function printPacking() {
+  const o = orders.find(x=>x.orderId===editingOrderId);
+  if (!o) return;
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>Packing List - ${o.orderId}</title>
+  <style>
+    body{font-family:'Sarabun',sans-serif;font-size:14px;padding:24px;color:#000;}
+    h2{font-size:1.2rem;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:16px;}
+    .info{margin-bottom:4px;}
+    table{width:100%;border-collapse:collapse;margin-top:14px;}
+    th,td{border:1px solid #ccc;padding:8px 12px;text-align:left;}
+    th{background:#f5f5f5;font-weight:700;}
+    .total{font-weight:700;font-size:1.05rem;}
+    .footer{margin-top:20px;font-size:.85rem;color:#555;}
+    @media print{button{display:none!important;}}
+  </style></head><body>
+  <h2>📦 Packing List — ${o.orderId}</h2>
+  <div class="info"><strong>วันที่:</strong> ${o.timestamp}</div>
+  <div class="info"><strong>ลูกค้า:</strong> ${o.customerName} (${o.xAccount})</div>
+  <div class="info"><strong>โทร:</strong> ${o.phone}</div>
+  <div class="info"><strong>ที่อยู่:</strong> ${o.address}</div>
+  ${o.trackingNumber ? `<div class="info"><strong>เลขพัสดุ:</strong> ${o.trackingNumber}</div>` : ''}
+  <table>
+    <thead><tr><th>#</th><th>สินค้า</th><th>จำนวน</th><th>ราคา/ชิ้น</th><th>รวม</th></tr></thead>
+    <tbody>
+      ${o.items.map((item,i)=>`<tr><td>${i+1}</td><td>${item.name}</td><td>${item.qty}</td><td>฿${Number(item.price).toLocaleString()}</td><td>฿${(item.price*item.qty).toLocaleString()}</td></tr>`).join('')}
+    </tbody>
+  </table>
+  <br>
+  <div class="info">ค่าจัดส่ง: ฿${Number(o.shippingFee).toLocaleString()}</div>
+  <div class="info total">ยอดรวมทั้งหมด: ฿${Number(o.total).toLocaleString()}</div>
+  <div class="footer">— พิมพ์โดยระบบจัดการร้านค้า —</div>
+  <br><button onclick="window.print()">🖨️ พิมพ์</button>
+  </body></html>`);
+  win.document.close();
+}
+
+// =====================================================================
+//  PRODUCT CRUD
+// =====================================================================
+function openProdModal() {
+  document.getElementById('prodId').value    = '';
+  document.getElementById('prodModalTitle').textContent = 'เพิ่มสินค้า';
+  document.getElementById('prodName').value  = '';
+  document.getElementById('prodPrice').value = '';
+  document.getElementById('prodStock').value = 0;
+  document.getElementById('prodMax').value   = 99;
+  document.getElementById('prodImg').value   = '';
+  document.getElementById('prodImgPrev').style.display = 'none';
+  const sel = document.getElementById('prodCol');
+  sel.innerHTML = collections.map(c=>`<option value="${c.ID}">${c.Name}</option>`).join('');
+  new bootstrap.Modal(document.getElementById('prodModal')).show();
+}
+
+function editProduct(id) {
+  const p = products.find(x=>x.ID===id);
+  if (!p) return;
+  document.getElementById('prodId').value    = p.ID;
+  document.getElementById('prodModalTitle').textContent = 'แก้ไขสินค้า';
+  document.getElementById('prodName').value  = p.Name;
+  document.getElementById('prodPrice').value = p.Price;
+  document.getElementById('prodStock').value = p.Stock;
+  document.getElementById('prodMax').value   = p.MaxPerOrder;
+  document.getElementById('prodImg').value   = p.ImageURL||'';
+  const sel = document.getElementById('prodCol');
+  sel.innerHTML = collections.map(c=>`<option value="${c.ID}" ${c.ID===p.CollectionID?'selected':''}>${c.Name}</option>`).join('');
+  previewProdImg(p.ImageURL);
+  new bootstrap.Modal(document.getElementById('prodModal')).show();
+}
+
+function previewProdImg(url) {
+  const img = document.getElementById('prodImgPrev');
+  if (url) { img.src=url; img.style.display='block'; } else { img.style.display='none'; }
+}
+
+async function saveProduct() {
+  const id    = document.getElementById('prodId').value;
+  const name  = document.getElementById('prodName').value.trim();
+  const price = document.getElementById('prodPrice').value;
+  if (!name||!price) { showToast('กรุณากรอกชื่อและราคา','error'); return; }
+  showLoading(true);
+  const res = await apiFetch('saveProduct',{
+    id:id||undefined, collectionId:document.getElementById('prodCol').value,
+    name, price, stock:document.getElementById('prodStock').value,
+    maxPerOrder:document.getElementById('prodMax').value,
+    imageUrl:document.getElementById('prodImg').value
+  });
+  showLoading(false);
+  if (res.success) {
+    showToast('บันทึกสินค้าสำเร็จ','success');
+    bootstrap.Modal.getInstance(document.getElementById('prodModal')).hide();
+    loadProducts();
+  } else { showToast('เกิดข้อผิดพลาด','error'); }
+}
+
+async function deleteProduct(id, name) {
+  if (!confirm(`ลบสินค้า "${name}" ใช่หรือไม่?`)) return;
+  showLoading(true);
+  const res = await apiFetch('deleteProduct',{id});
+  showLoading(false);
+  if (res.success) { showToast('ลบสินค้าแล้ว'); loadProducts(); }
+}
+
+// =====================================================================
+//  COLLECTION CRUD
+// =====================================================================
+function openColModal() {
+  document.getElementById('colId').value='';
+  document.getElementById('colName').value='';
+  document.getElementById('colModalTitle').textContent='เพิ่มหมวดหมู่';
+  new bootstrap.Modal(document.getElementById('colModal')).show();
+}
+function editCol(id,name) {
+  document.getElementById('colId').value=id;
+  document.getElementById('colName').value=name;
+  document.getElementById('colModalTitle').textContent='แก้ไขหมวดหมู่';
+  new bootstrap.Modal(document.getElementById('colModal')).show();
+}
+async function saveCollection() {
+  const id   = document.getElementById('colId').value;
+  const name = document.getElementById('colName').value.trim();
+  if (!name) { showToast('กรุณาใส่ชื่อหมวดหมู่','error'); return; }
+  showLoading(true);
+  const res = await apiFetch('saveCollection',{id:id||undefined,name});
+  showLoading(false);
+  if (res.success) {
+    showToast('บันทึกหมวดหมู่สำเร็จ','success');
+    bootstrap.Modal.getInstance(document.getElementById('colModal')).hide();
+    loadCollections();
+  }
+}
+async function deleteCol(id,name) {
+  if (!confirm(`ลบหมวดหมู่ "${name}" ใช่หรือไม่?`)) return;
+  showLoading(true);
+  const res = await apiFetch('deleteCollection',{id});
+  showLoading(false);
+  if (res.success) { showToast('ลบหมวดหมู่แล้ว'); loadCollections(); }
+}
+
+// =====================================================================
+//  SETTINGS
+// =====================================================================
+async function saveSettings() {
+  showLoading(true);
+  const res = await apiFetch('saveSettings',{
+    shopName:document.getElementById('setName').value,
+    xAccount:document.getElementById('setX').value,
+    bankAccount:document.getElementById('setBank').value,
+    shippingFee:document.getElementById('setShip').value
+  });
+  showLoading(false);
+  if (res.success) { showToast('บันทึกการตั้งค่าสำเร็จ','success'); loadSettings(); }
+  else showToast('เกิดข้อผิดพลาด','error');
+}
+async function changePassword() {
+  const p1 = document.getElementById('setPw1').value;
+  const p2 = document.getElementById('setPw2').value;
+  if (!p1) { showToast('กรุณาใส่รหัสผ่านใหม่','error'); return; }
+  if (p1!==p2) { showToast('รหัสผ่านไม่ตรงกัน','error'); return; }
+  showLoading(true);
+  const res = await apiFetch('saveSettings',{adminPassword:p1});
+  showLoading(false);
+  if (res.success) {
+    showToast('เปลี่ยนรหัสผ่านสำเร็จ','success');
+    document.getElementById('setPw1').value='';
+    document.getElementById('setPw2').value='';
+  }
+}
+
+// =====================================================================
+//  SLIP VIEWER
+// =====================================================================
+function viewSlip(url) {
+  document.getElementById('slipModalImg').src = url;
+  new bootstrap.Modal(document.getElementById('slipModal')).show();
+}
+
+// =====================================================================
+//  NAVIGATION
+// =====================================================================
+function go(name) {
+  document.querySelectorAll('.admin-section').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  document.getElementById('section-'+name).classList.add('active');
+  document.getElementById('nav-'+name).classList.add('active');
+  const titles={dashboard:'Dashboard',orders:'จัดการออเดอร์',products:'จัดการสินค้า',collections:'หมวดหมู่สินค้า',settings:'ตั้งค่า'};
+  document.getElementById('topbarTitle').textContent = titles[name]||name;
+}
+
+// =====================================================================
+//  API + HELPERS
+// =====================================================================
+async function apiFetch(action, body={}) {
+  const res = await fetch(API_URL,{method:'POST',body:JSON.stringify({action,...body})});
+  return await res.json();
+}
+function showLoading(v) { document.getElementById('loadingOverlay').classList.toggle('show',v); }
+function showToast(msg,type='') {
+  const el=document.createElement('div');
+  el.className='toast-msg '+type;
+  el.textContent=msg;
+  document.getElementById('toastWrap').appendChild(el);
+  setTimeout(()=>el.remove(),3000);
+}
+
+// =====================================================================
+//  AUTO-LOGIN
+// =====================================================================
+if (sessionStorage.getItem('adminAuth')==='1') {
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('adminApp').style.display='';
+  initAdmin();
+}
+</script>
+</body>
+</html>
