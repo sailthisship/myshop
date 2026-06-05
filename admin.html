@@ -102,6 +102,17 @@
   .slip-thumb{max-width:100px;max-height:70px;object-fit:contain;border-radius:6px;border:1px solid var(--border);cursor:pointer;}
   .slip-no{font-size:.72rem;color:var(--muted);}
 
+  /* DRIVE LINK */
+  .drive-link-btn{display:inline-flex;align-items:center;gap:6px;background:#e8f5e9;color:#1b5e20;border:1.5px solid #a5d6a7;border-radius:8px;padding:5px 11px;font-size:.75rem;font-weight:600;text-decoration:none;white-space:nowrap;transition:all .2s;}
+  .drive-link-btn:hover{background:#1b5e20;color:#fff;border-color:#1b5e20;}
+  .drive-link-btn i{font-size:.7rem;}
+
+  .slip-drive-box{display:flex;align-items:center;gap:14px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:14px 16px;flex-wrap:wrap;}
+  .slip-drive-icon{font-size:2rem;flex-shrink:0;}
+  .slip-drive-info{flex:1;min-width:140px;}
+  .drive-open-btn{display:inline-flex;align-items:center;gap:7px;background:#16a34a;color:#fff;border:none;border-radius:9px;padding:9px 18px;font-size:.845rem;font-weight:600;text-decoration:none;white-space:nowrap;transition:opacity .2s;cursor:pointer;}
+  .drive-open-btn:hover{opacity:.85;color:#fff;}
+
   /* PROD THUMB */
   .prod-thumb{width:42px;height:42px;object-fit:cover;border-radius:7px;background:var(--bg);}
   .prod-thumb-ph{width:42px;height:42px;background:var(--bg);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#ccc;}
@@ -401,7 +412,7 @@
 // =====================================================================
 //  ⚙️ CONFIG
 // =====================================================================
-const API_URL = 'https://script.google.com/macros/s/AKfycbwdlPa4jDuobh0VbbFvK8RQVoSadNqwShzGoicOuvpFQkKfw1hxQ_mq9v8e--iszpSC/exec';
+const API_URL = 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE';
 
 // =====================================================================
 //  STATE
@@ -508,10 +519,12 @@ function renderOrdersTable() {
     // สลิปจาก Google Drive
     let slipCell = '<span class="slip-no">ไม่มีสลิป</span>';
     if (o.slipUrl) {
-      slipCell = `<div>
-        <img class="slip-thumb" src="${o.slipUrl}" alt="สลิป" onclick="viewSlip('${o.slipUrl}')"
-          onerror="this.outerHTML='<span class=\\'slip-no\\'>โหลดรูปไม่ได้</span>'">
-        <div class="drive-badge mt-1"><i class="fa fa-cloud" style="font-size:.65rem"></i>Drive</div>
+      const driveLink = getDriveLink(o.slipUrl);
+      slipCell = `<div class="d-flex flex-column gap-1 align-items-start">
+        <a href="${driveLink}" target="_blank" class="drive-link-btn">
+          <i class="fa fa-cloud"></i> ดูสลิปใน Drive
+        </a>
+        <span class="slip-no" style="font-size:.68rem;color:var(--muted)">คลิกเพื่อเปิด</span>
       </div>`;
     }
     return `<tr>
@@ -569,15 +582,22 @@ function openOrderModal(orderId) {
   editingOrderId = orderId;
   document.getElementById('modalOrdId').textContent = orderId;
 
-  // สลิป — แสดงรูปจาก Google Drive URL
+  // สลิป — แสดงลิงค์ Google Drive
   let slipSection = '';
   if (o.slipUrl) {
+    const driveLink = getDriveLink(o.slipUrl);
     slipSection = `
       <div class="col-12">
         <label class="form-label">🧾 สลิปโอนเงิน <span class="drive-badge"><i class="fa fa-cloud"></i>Google Drive</span></label>
-        <div><img src="${o.slipUrl}" style="max-height:200px;border-radius:10px;cursor:pointer;border:1.5px solid var(--border)"
-          onclick="viewSlip('${o.slipUrl}')"
-          onerror="this.outerHTML='<div style=\\'color:var(--muted);font-size:.82rem\\'>โหลดรูปสลิปไม่ได้</div>'">
+        <div class="slip-drive-box">
+          <div class="slip-drive-icon">☁️</div>
+          <div class="slip-drive-info">
+            <div style="font-weight:600;font-size:.875rem">ไฟล์สลิปถูกบันทึกใน Google Drive</div>
+            <div style="font-size:.78rem;color:var(--muted);margin-top:2px">คลิกปุ่มด้านล่างเพื่อเปิดดูรูปสลิป</div>
+          </div>
+          <a href="${driveLink}" target="_blank" class="drive-open-btn">
+            <i class="fa fa-external-link-alt"></i> เปิดดูสลิป
+          </a>
         </div>
       </div>`;
   }
@@ -815,6 +835,18 @@ async function changePassword() {
 function viewSlip(url) {
   document.getElementById('slipModalImg').src = url;
   new bootstrap.Modal(document.getElementById('slipModal')).show();
+}
+
+// แปลง URL ของ Google Drive ให้เป็น link ที่เปิดดูได้โดยตรง
+function getDriveLink(url) {
+  if (!url) return '#';
+  // รูปแบบ: https://drive.google.com/uc?export=view&id=FILE_ID
+  const match = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (match) {
+    return `https://drive.google.com/file/d/${match[1]}/view`;
+  }
+  // รูปแบบอื่นๆ ส่งกลับตรงๆ
+  return url;
 }
 
 // =====================================================================
