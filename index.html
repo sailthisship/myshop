@@ -626,7 +626,26 @@ function buildCoStep1() {
   document.getElementById('coTotal').textContent= '฿'+getTotal().toLocaleString();
 }
 
-function goStep2() {
+async function goStep2() {
+  // เช็คสต๊อกสดก่อนไปหน้าโอนเงิน
+  showLoading(true, '🔍 กำลังตรวจสอบสต๊อก...');
+  try {
+    const freshRes = await apiFetch('getProducts');
+    if (freshRes.success) {
+      products = freshRes.data;
+      for (const item of cart) {
+        const fresh = products.find(p => p.ID === item.productId);
+        if (!fresh || Number(fresh.Stock) < item.qty) {
+          showLoading(false);
+          showToast(`"${item.name}" สต๊อกไม่พอแล้วค่ะ กรุณาตรวจสอบตะกร้า`, 'error');
+          renderProducts(); renderCart();
+          return; // หยุดไว้ที่ step 1
+        }
+      }
+    }
+  } catch(e) { /* ถ้าเช็คไม่ได้ก็ผ่านไปเลย */ }
+  showLoading(false);
+
   document.getElementById('bankInfo').textContent  = settings.bankAccount || 'กรุณาตั้งค่าบัญชีธนาคาร';
   document.getElementById('bankTotal').textContent = '฿'+getTotal().toLocaleString();
   document.getElementById('coStep1').style.display = 'none';
@@ -783,28 +802,7 @@ async function submitOrder() {
   }
 
   const btn = document.getElementById('btnSubmit');
-  btn.disabled = true; btn.textContent = '🔍 กำลังเช็คสต๊อก...';
-  showLoading(true, 'กำลังตรวจสอบสต๊อก...');
-
-  // เช็คสต๊อกสดก่อน checkout — ป้องกัน race condition
-  try {
-    const freshRes = await apiFetch('getProducts');
-    if (freshRes.success) {
-      products = freshRes.data;
-      for (const item of cart) {
-        const fresh = products.find(p => p.ID === item.productId);
-        if (!fresh || Number(fresh.Stock) < item.qty) {
-          showToast(`"${item.name}" สต๊อกไม่พอแล้วค่ะ กรุณาตรวจสอบตะกร้า`, 'error');
-          renderProducts(); renderCart();
-          showLoading(false);
-          btn.disabled = false; btn.textContent = '✅ ยืนยันการสั่งซื้อ';
-          return;
-        }
-      }
-    }
-  } catch(e) { /* ถ้าเช็คไม่ได้ก็ส่งต่อเลย — Apps Script จะเช็คอีกรอบ */ }
-
-  btn.textContent = '📝 กำลังส่งคำสั่งซื้อ...';
+  btn.disabled = true; btn.textContent = '📝 กำลังส่งคำสั่งซื้อ...';
   showLoading(true, 'กำลังบันทึกคำสั่งซื้อ...');
 
   try {
