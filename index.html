@@ -376,7 +376,7 @@
 // =====================================================================
 //  ⚙️ CONFIG — ใส่ URL ของ Google Apps Script ที่นี่
 // =====================================================================
-const API_URL = 'https://script.google.com/macros/s/AKfycbykGNHc5Tava7tcuYNTohCsZ2uT8YLxAVvJ046Bv7cOFfcUkLujeaEqpB-yTv4is5Xw/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycby0P_Q3WufolPnRHT9N9NjCTvgGuyYrzv8eNmGjtphYFY97rhEA-RbyxWs1a6sFTHfJdg/exec';
 
 // =====================================================================
 //  STATE
@@ -428,16 +428,34 @@ function applySettings() {
 //  API
 // =====================================================================
 async function apiFetch(action, body = {}) {
-  // ใช้ GET + payload — ทำงานได้กับ Apps Script โดยไม่ติด CORS
-  const payload = encodeURIComponent(JSON.stringify({ action, ...body }));
-  const url = API_URL + '?payload=' + payload;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30000);
   try {
-    const res = await fetch(url, { method: 'GET', signal: controller.signal });
+    let res;
+    if (action === 'uploadSlip') {
+      // POST สำหรับสลิป เพราะ base64 ยาวเกิน URL limit
+      res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...body }),
+        signal: controller.signal
+      });
+    } else {
+      // GET สำหรับ action อื่นทั้งหมด — ไม่ติดปัญหา CORS
+      const payload = encodeURIComponent(JSON.stringify({ action, ...body }));
+      res = await fetch(API_URL + '?payload=' + payload, {
+        method: 'GET',
+        signal: controller.signal
+      });
+    }
     clearTimeout(timer);
     const text = await res.text();
-    return JSON.parse(text);
+    try {
+      return JSON.parse(text);
+    } catch(e) {
+      console.error('API response not JSON:', text.substring(0, 300));
+      throw new Error('API ตอบกลับไม่ใช่ JSON');
+    }
   } catch(e) {
     clearTimeout(timer);
     throw e;
@@ -625,20 +643,37 @@ function setStep(n) {
 function handleSlipSelect(input) {
   const file = input.files[0];
   if (!file) return;
-  slipMimeType  = file.type || 'image/jpeg';
+  slipMimeType  = 'image/jpeg'; // บีบอัดเป็น jpeg เสมอ
   slipUploaded  = false;
   slipDriveUrl  = '';
 
   const reader = new FileReader();
   reader.onload = async (e) => {
-    slipBase64 = e.target.result;
+    // ย่อรูปก่อนส่ง — ป้องกัน payload ใหญ่เกิน
+    const compressed = await compressImage(e.target.result, 1200, 0.75);
+    slipBase64 = compressed;
     const preview = document.getElementById('slipPreview');
-    preview.src   = slipBase64;
+    preview.src   = compressed;
     preview.style.display = 'block';
-    // อัปโหลดทันที
     await uploadSlipNow();
   };
   reader.readAsDataURL(file);
+}
+
+// บีบอัดรูปด้วย Canvas ให้ไม่เกิน maxWidth px และ quality ที่กำหนด
+function compressImage(dataUrl, maxWidth, quality) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.src = dataUrl;
+  });
 }
 
 async function uploadSlipNow() {
