@@ -388,7 +388,7 @@ let cart        = JSON.parse(localStorage.getItem('cart') || '[]');
 let selectedCol = 'all';
 let slipBase64  = '';
 let slipMimeType= 'image/jpeg';
-let slipDriveUrl= '';   // URL จาก Google Drive หลังอัปโหลด
+let slipDriveUrl= '';   // URL จาก ImgBB หลังอัปโหลด
 let slipUploaded= false;
 
 // =====================================================================
@@ -428,26 +428,14 @@ function applySettings() {
 //  API
 // =====================================================================
 async function apiFetch(action, body = {}) {
+  // Apps Script รองรับแค่ GET (POST ติด CORS preflight จาก GitHub Pages)
+  // สลิปถูกบีบอัดให้เล็กก่อนส่ง ดังนั้น GET ก็พอ
+  const payload = encodeURIComponent(JSON.stringify({ action, ...body }));
+  const url = API_URL + '?payload=' + payload;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 30000);
+  const timer = setTimeout(() => controller.abort(), 60000);
   try {
-    let res;
-    if (action === 'uploadSlip') {
-      // POST สำหรับสลิป เพราะ base64 ยาวเกิน URL limit
-      res = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, ...body }),
-        signal: controller.signal
-      });
-    } else {
-      // GET สำหรับ action อื่นทั้งหมด — ไม่ติดปัญหา CORS
-      const payload = encodeURIComponent(JSON.stringify({ action, ...body }));
-      res = await fetch(API_URL + '?payload=' + payload, {
-        method: 'GET',
-        signal: controller.signal
-      });
-    }
+    const res = await fetch(url, { method: 'GET', signal: controller.signal });
     clearTimeout(timer);
     const text = await res.text();
     try {
@@ -650,7 +638,7 @@ function handleSlipSelect(input) {
   const reader = new FileReader();
   reader.onload = async (e) => {
     // ย่อรูปก่อนส่ง — ป้องกัน payload ใหญ่เกิน
-    const compressed = await compressImage(e.target.result, 1200, 0.75);
+    const compressed = await compressImage(e.target.result, 900, 0.65);
     slipBase64 = compressed;
     const preview = document.getElementById('slipPreview');
     preview.src   = compressed;
@@ -661,40 +649,56 @@ function handleSlipSelect(input) {
 }
 
 // บีบอัดรูปด้วย Canvas ให้ไม่เกิน maxWidth px และ quality ที่กำหนด
-function compressImage(dataUrl, maxWidth, quality) {
-  return new Promise((resolve) => {
+// บีบรูปให้เล็กลง — ลดรอบซ้ำหากยังใหญ่เกิน URL limit (~500KB base64)
+async function compressImage(dataUrl, maxWidth, quality) {
+  const compress = (src, w, q) => new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
-      let w = img.width, h = img.height;
-      if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL('image/jpeg', quality));
+      let iw = img.width, ih = img.height;
+      if (iw > w) { ih = Math.round(ih * w / iw); iw = w; }
+      const c = document.createElement('canvas');
+      c.width = iw; c.height = ih;
+      c.getContext('2d').drawImage(img, 0, 0, iw, ih);
+      resolve(c.toDataURL('image/jpeg', q));
     };
-    img.src = dataUrl;
+    img.src = src;
   });
+
+  let result = await compress(dataUrl, maxWidth, quality);
+  // ถ้ายังใหญ่กว่า 500KB (base64) ให้บีบซ้ำ
+  if (result.length > 500000) result = await compress(result, 800, 0.55);
+  if (result.length > 500000) result = await compress(result, 600, 0.45);
+  return result;
 }
 
 async function uploadSlipNow() {
-  setSlipStatus('uploading', '⏳ กำลังอัปโหลดสลิปไป Google Drive...');
+  setSlipStatus('uploading', '⏳ กำลังอัปโหลดสลิป...');
   try {
-    const res = await apiFetch('uploadSlip', {
-      base64:   slipBase64,
-      orderId:  'PENDING_' + Date.now(),
-      mimeType: slipMimeType
+    // ส่งตรงไป ImgBB — ไม่ผ่าน Apps Script เลย ไม่มีปัญหา CORS
+    const imgbbKey = '4ec208711842db433209b18d27780776';
+    const base64Data = slipBase64.split(',')[1]; // ตัด data:image/jpeg;base64, ออก
+
+    const formData = new FormData();
+    formData.append('key', imgbbKey);
+    formData.append('image', base64Data);
+
+    const res = await fetch('https://api.imgbb.com/1/upload', {
+      method: 'POST',
+      body: formData
     });
-    if (res.success) {
-      slipDriveUrl = res.url;
+    const data = await res.json();
+
+    if (data.success) {
+      slipDriveUrl = data.data.url;   // URL รูปที่เปิดได้สาธารณะ
       slipUploaded = true;
-      setSlipStatus('done', '✅ อัปโหลดสำเร็จ บันทึกใน Google Drive แล้ว');
+      setSlipStatus('done', '✅ อัปโหลดสำเร็จแล้ว');
     } else {
       slipUploaded = false;
-      setSlipStatus('error', '❌ อัปโหลดไม่สำเร็จ: ' + (res.message||''));
+      setSlipStatus('error', '❌ อัปโหลดไม่สำเร็จ: ' + (data.error?.message||'unknown'));
     }
   } catch(e) {
     slipUploaded = false;
-    setSlipStatus('error', '❌ เกิดข้อผิดพลาดในการอัปโหลด');
+    setSlipStatus('error', '❌ เกิดข้อผิดพลาด: ' + e.message);
   }
 }
 
@@ -760,7 +764,7 @@ async function submitOrder() {
       customerName: name,
       xAccount:     xAcc,
       phone, address,
-      slipUrl: slipDriveUrl,   // ← URL จาก Google Drive
+      slipUrl: slipDriveUrl,   // ← URL จาก ImgBB
       items: cart.map(i => ({ productId:i.productId, name:i.name, price:i.price, qty:i.qty }))
     });
     if (res.success) {
